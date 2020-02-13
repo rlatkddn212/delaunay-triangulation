@@ -12,3 +12,9 @@ point 입력시 중복되는 point가 없도록 처리해주세요. (이 프로�
 
 ![delaunay](https://github.com/rlatkddn212/delaunay-triangulation/blob/master/Delaunay.png)
 
+
+  
+참고 자료  
+http://www.secmem.org/blog/2019/01/11/Deluanay_Triangulation/  
+https://kipl.tistory.com/16  
+computational Geometry Algorithms and Applications 9장
