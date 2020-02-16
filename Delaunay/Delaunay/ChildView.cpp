@@ -21,7 +21,6 @@
 using namespace std;
 
 double TRIANGLE_SIZE = 1000.0;
-
 struct Triangle;
 struct Node
 {
@@ -31,6 +30,10 @@ struct Node
 		p0 = nullptr;
 		p1 = nullptr;
 		visited = false;
+	}
+
+	~Node()
+	{
 	}
 
 	shared_ptr<Triangle> triangle;
@@ -54,15 +57,17 @@ struct Triangle
 	CVector2D p2;
 
 	weak_ptr<Node> thisNode;
-
-	vector<shared_ptr<Triangle>> adj;
+	weak_ptr<Triangle> adj[3];
 
 	Triangle(CVector2D _p0, CVector2D _p1, CVector2D _p2)
-		: adj(3, nullptr)
 	{
 		p0 = _p0;
 		p1 = _p1;
 		p2 = _p2;
+	}
+
+	~Triangle()
+	{
 	}
 
 	void print()
@@ -107,9 +112,9 @@ struct Triangle
 
 	int GetEdgeWithAdj(shared_ptr<Triangle> triangle)
 	{
-		for (size_t i = 0; i < adj.size(); ++i)
+		for (size_t i = 0; i < 3; ++i)
 		{
-			if (triangle == adj[i])
+			if (triangle == adj[i].lock())
 			{
 				return i;
 			}
@@ -140,10 +145,11 @@ struct Triangle
 	{
 		if (p.Equal(p0))
 		{
-			if (adj[1] &&
-				(adj[1]->p0.Equal(p) ||
-					adj[1]->p1.Equal(p) ||
-					adj[1]->p2.Equal(p)))
+			shared_ptr<Triangle> adjTriangle = adj[1].lock();
+			if (adjTriangle &&
+				(adjTriangle->p0.Equal(p) ||
+					adjTriangle->p1.Equal(p) ||
+					adjTriangle->p2.Equal(p)))
 			{
 				printf("Edge 오류\n");
 			}
@@ -152,10 +158,11 @@ struct Triangle
 		}
 		else if (p.Equal(p1))
 		{
-			if (adj[2] &&
-				(adj[2]->p0.Equal(p) ||
-					adj[2]->p1.Equal(p) ||
-					adj[2]->p2.Equal(p)))
+			shared_ptr<Triangle> adjTriangle = adj[2].lock();
+			if (adjTriangle &&
+				(adjTriangle->p0.Equal(p) ||
+					adjTriangle->p1.Equal(p) ||
+					adjTriangle->p2.Equal(p)))
 			{
 				printf("Edge 오류\n");
 			}
@@ -164,10 +171,11 @@ struct Triangle
 		}
 		else if (p.Equal(p2))
 		{
-			if (adj[0] &&
-				(adj[0]->p0.Equal(p) ||
-					adj[0]->p1.Equal(p) ||
-					adj[0]->p2.Equal(p)))
+			shared_ptr<Triangle> adjTriangle = adj[0].lock();
+			if (adjTriangle &&
+				(adjTriangle->p0.Equal(p) ||
+					adjTriangle->p1.Equal(p) ||
+					adjTriangle->p2.Equal(p)))
 			{
 				printf("Edge 오류\n");
 			}
@@ -245,9 +253,9 @@ struct Triangle
 
 			for (int i = 0; i < 3; ++i)
 			{
-				if (adj[2]->adj[i].get() == this)
+				if (adj[2].lock()->adj[i].lock().get() == this)
 				{
-					adj[2]->adj[i] = ret[0];
+					adj[2].lock()->adj[i] = ret[0];
 					break;
 				}
 			}
@@ -255,9 +263,9 @@ struct Triangle
 			ret[1]->adj[1] = adj[1];
 			for (int i = 0; i < 3; ++i)
 			{
-				if (adj[1]->adj[i].get() == this)
+				if (adj[1].lock()->adj[i].lock().get() == this)
 				{
-					adj[1]->adj[i] = ret[1];
+					adj[1].lock()->adj[i] = ret[1];
 					break;
 				}
 			}
@@ -271,9 +279,9 @@ struct Triangle
 			ret[0]->adj[2] = adj[0];
 			for (int i = 0; i < 3; ++i)
 			{
-				if (adj[0]->adj[i].get() == this)
+				if (adj[0].lock()->adj[i].lock().get() == this)
 				{
-					adj[0]->adj[i] = ret[0];
+					adj[0].lock()->adj[i] = ret[0];
 					break;
 				}
 			}
@@ -281,9 +289,9 @@ struct Triangle
 			ret[1]->adj[1] = adj[2];
 			for (int i = 0; i < 3; ++i)
 			{
-				if (adj[2]->adj[i].get() == this)
+				if (adj[2].lock()->adj[i].lock().get() == this)
 				{
-					adj[2]->adj[i] = ret[1];
+					adj[2].lock()->adj[i] = ret[1];
 					break;
 				}
 			}
@@ -297,18 +305,18 @@ struct Triangle
 			ret[0]->adj[2] = adj[1];
 			for (int i = 0; i < 3; ++i)
 			{
-				if (adj[1]->adj[i].get() == this)
+				if (adj[1].lock()->adj[i].lock().get() == this)
 				{
-					adj[1]->adj[i] = ret[0];
+					adj[1].lock()->adj[i] = ret[0];
 					break;
 				}
 			}
 			ret[1]->adj[1] = adj[0];
 			for (int i = 0; i < 3; ++i)
 			{
-				if (adj[0]->adj[i].get() == this)
+				if (adj[0].lock()->adj[i].lock().get() == this)
 				{
-					adj[0]->adj[i] = ret[1];
+					adj[0].lock()->adj[i] = ret[1];
 					break;
 				}
 			}
@@ -414,6 +422,7 @@ public:
 			return;
 		}
 
+		n->triangle.reset();
 		for (size_t i = 0; i < n->childs.size(); ++i)
 		{
 			if (!n->childs[i]->visited)
@@ -467,12 +476,12 @@ void checkAdj(shared_ptr<Triangle> t)
 #ifdef _DEBUG
 	for (int i = 0; i < 3; ++i)
 	{
-		if (t->adj[i])
+		if (t->adj[i].lock())
 		{
 			bool isFind = false;
 			for (int j = 0; j < 3; ++j)
 			{
-				if (t->adj[i]->adj[j] == t)
+				if (t->adj[i].lock()->adj[j].lock() == t)
 				{
 					isFind = true;
 				}
@@ -520,7 +529,7 @@ vector<shared_ptr<Triangle>> Flip(shared_ptr<Triangle> t0, int e0, shared_ptr<Tr
 	if (t1p2Edge != -1)
 	{
 		ret[0]->adj[1] = t1->adj[t1p2Edge];
-		shared_ptr<Triangle> adj = t1->adj[t1p2Edge];
+		shared_ptr<Triangle> adj = t1->adj[t1p2Edge].lock();
 		if (adj)
 		{
 			adj->adj[adj->GetEdgeWithAdj(t1)] = ret[0];
@@ -531,7 +540,7 @@ vector<shared_ptr<Triangle>> Flip(shared_ptr<Triangle> t0, int e0, shared_ptr<Tr
 	if (t0p2Edge != -1)
 	{
 		ret[0]->adj[2] = t0->adj[t0p2Edge];
-		shared_ptr<Triangle> adj = t0->adj[t0p2Edge];
+		shared_ptr<Triangle> adj = t0->adj[t0p2Edge].lock();
 		if (adj)
 		{
 			adj->adj[adj->GetEdgeWithAdj(t0)] = ret[0];
@@ -544,7 +553,7 @@ vector<shared_ptr<Triangle>> Flip(shared_ptr<Triangle> t0, int e0, shared_ptr<Tr
 	if (t0p1Edge != -1)
 	{
 		ret[1]->adj[1] = t0->adj[t0p1Edge];
-		shared_ptr<Triangle> adj = t0->adj[t0p1Edge];
+		shared_ptr<Triangle> adj = t0->adj[t0p1Edge].lock();
 		if (adj)
 		{
 			adj->adj[adj->GetEdgeWithAdj(t0)] = ret[1];
@@ -555,7 +564,7 @@ vector<shared_ptr<Triangle>> Flip(shared_ptr<Triangle> t0, int e0, shared_ptr<Tr
 	if (t1p1Edge != -1)
 	{
 		ret[1]->adj[2] = t1->adj[t1p1Edge];
-		shared_ptr<Triangle> adj = t1->adj[t1p1Edge];
+		shared_ptr<Triangle> adj = t1->adj[t1p1Edge].lock();
 		if (adj)
 		{
 			adj->adj[adj->GetEdgeWithAdj(t1)] = ret[1];
@@ -599,7 +608,7 @@ void LegalizeEdge(CVector2D point, shared_ptr<Triangle> triangle)
 	}
 
 	// 인접한 삼각형에서 겹쳐진 edge를 가져온다.
-	shared_ptr<Triangle> adjTriangle = triangle->adj[edgeNum];
+	shared_ptr<Triangle> adjTriangle = triangle->adj[edgeNum].lock();
 	if (adjTriangle == nullptr)
 	{
 		return;
@@ -645,7 +654,7 @@ vector<shared_ptr<Triangle>> DelaunayTriangulate(const vector<CVector2D>& points
 			t0->adj[0] = t2;
 			t0->adj[1] = triangle->adj[0];
 			t0->adj[2] = t1;
-			shared_ptr<Triangle> adj0 = triangle->adj[0];
+			shared_ptr<Triangle> adj0 = triangle->adj[0].lock();
 			if (adj0)
 			{
 				adj0->adj[adj0->GetEdgeWithAdj(triangle)] = t0;
@@ -654,7 +663,7 @@ vector<shared_ptr<Triangle>> DelaunayTriangulate(const vector<CVector2D>& points
 			t1->adj[0] = t0;
 			t1->adj[1] = triangle->adj[1];
 			t1->adj[2] = t2;
-			shared_ptr<Triangle> adj1 = triangle->adj[1];
+			shared_ptr<Triangle> adj1 = triangle->adj[1].lock();
 			if (adj1)
 			{
 				adj1->adj[adj1->GetEdgeWithAdj(triangle)] = t1;
@@ -663,7 +672,7 @@ vector<shared_ptr<Triangle>> DelaunayTriangulate(const vector<CVector2D>& points
 			t2->adj[0] = t1;
 			t2->adj[1] = triangle->adj[2];
 			t2->adj[2] = t0;
-			shared_ptr<Triangle> adj2 = triangle->adj[2];
+			shared_ptr<Triangle> adj2 = triangle->adj[2].lock();
 			if (adj2)
 			{
 				adj2->adj[adj2->GetEdgeWithAdj(triangle)] = t2;
@@ -708,7 +717,7 @@ vector<shared_ptr<Triangle>> DelaunayTriangulate(const vector<CVector2D>& points
 			// 겹쳐진 edge 가져온다.
 			int edgeNum = triangle->GetEdge(points[i]);
 			// 인접한 삼각형에서 겹쳐진 edge를 가져온다.
-			shared_ptr<Triangle> adjTriangle = triangle->adj[edgeNum];
+			shared_ptr<Triangle> adjTriangle = triangle->adj[edgeNum].lock();
 
 			// 삼각형 생성
 			vector<shared_ptr<Triangle>> t0 = triangle->SplitTriangle(points[i]);
@@ -749,6 +758,7 @@ vector<shared_ptr<Triangle>> DelaunayTriangulate(const vector<CVector2D>& points
 		}
 	}
 
+
 	vector<shared_ptr<Triangle>> ret = dag.GenTriangle();
 	vector<shared_ptr<Triangle>> res;
 	for (size_t i = 0; i < ret.size(); ++i)
@@ -760,9 +770,10 @@ vector<shared_ptr<Triangle>> DelaunayTriangulate(const vector<CVector2D>& points
 			continue;
 		}
 
-		res.push_back(ret[i]);
+		res.push_back(make_shared<Triangle>(ret[i]->p0, ret[i]->p1, ret[i]->p2));
 	}
 
+	ret.clear();
 	return res;
 }
 
